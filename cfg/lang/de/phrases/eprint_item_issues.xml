@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!DOCTYPE phrases SYSTEM "entities.dtd">
+
+<epp:phrases xmlns="http://www.w3.org/1999/xhtml" xmlns:epp="http://eprints.org/ep3/phrase"
+  xmlns:epc="http://eprints.org/ep3/control">
+
+  <!-- item_issues fields -->
+  <epp:phrase id="eprint_fieldname_item_issues">Probleme</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_id">Problem-ID</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_id">Eine eindeutige Kennzeichnung für dieses Problem</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_type">Problemtyp</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_type">Der Typ des Problems</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_type">
+    Der Typ des Problems. Verwenden Sie bitte einen der folgenden Werte:<br/>
+    <span class="ep_form_example">check_url_status</span> : für URL-Störungen, die durch den Linkchecker eingetragen wurden<br/>
+    <span class="ep_form_example">duplicate_title</span> : zum Auffinden von Einträgen mit Titelduplikaten<br/>
+    <span class="ep_form_example">invalid_url</span> : für Einträge mit URLs mit fehlerhaftem Format , die durch den Linker gefunden wurden<br/>
+    <span class="ep_form_example">journal_article_but_no_issn</span> : zum Auffinden von Einträgen mit fehlerhaften ISSNs<br/>
+    <span class="ep_form_example">similar_title</span> : zum Auffinden von Einträgen mit ähnlichen Titeln
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_description">Beschreibung</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_description">Eine ausführliche Beschreibung des entdeckten bzw. gemeldeten Problems</epp:phrase> 
+  <epp:phrase id="eprint_fieldname_item_issues_timestamp">Zeitstempel</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_timestamp">Der Zeitpunkt, an welchem das Problem entdeckt bzw. gemeldet wurde</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_timestamp">
+    Der Zeitpunkt, an welchem das Problem entdeckt bzw. gemeldet wurde<br/>
+    Geben Sie ein Datum oder eine Zeitspanne an.<br/>
+    Beispiele: "<span class="ep_form_example">1985-</span>",
+    "<span class="ep_form_example">2001-05-17-2002-05-16</span>",
+    "<span class="ep_form_example">-11-1980</span>"
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_status">Status</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_status">Problemstatus</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_status">
+    Der Problemstatus.<br/>
+    Die Werte <span class="ep_form_example">Automatisch erkannt</span> und <span class="ep_form_example">Automatisch gelöst</span> werden durch den nächtlichen issues audit Prozess gesetzt.<br/>
+    Die Werte <span class="ep_form_example">Gemeldet</span> und <span class="ep_form_example">Gelöst</span> werden durch den Linkchecker gesetzt.
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_reported_by">Reported by</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_reported_by">User who reported the issue</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_resolved_by">Resolved by</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_resorted_by">User who resolved the issue</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_comment">Comments</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_comment">Comments</epp:phrase>
+
+</epp:phrases>

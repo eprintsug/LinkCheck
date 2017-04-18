@@ -1,0 +1,547 @@
+#!/usr/bin/perl -w -I/usr/local/eprints/perl_lib
+
+###############################################################################
+#
+# Link check
+#
+# This script checks all the URL fields of a repository and updates the issue 
+# list. It does so for daily batches of eprints. The field names are taken from 
+# a configuration file.
+#
+###############################################################################
+#
+#  Copyright 2017 University of Zurich. All Rights Reserved.
+#
+#  Martin Brändle
+#  Zentrale Informatik
+#  Universität Zürich
+#  Stampfenbachstr. 73
+#  CH-8006 Zürich
+#  
+#  This script is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  The script is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with EPrints 3; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+######################################################################
+
+
+=pod
+
+=head1 NAME
+
+B<linkcheck> - Checks the URLs of a repository.
+
+=head1 SYNOPSIS
+
+B<linkcheck> I<repo> [B<options>] [I<eprint_id> I<eprint_id> ...]
+
+=head1 DESCRIPTION
+
+This script checks all the URL fields of a repository and updates the issue 
+list. It does so for daily batches of eprints or for all eprints. 
+The field names are taken from a configuration file.
+
+=head1 ARGUMENTS
+
+=over 8
+
+=item I<repo>
+
+The id of the repository.
+
+=item [I<eprint_id> I<eprint_id> ...]
+
+A list of eprint_ids used for checking. If not specified, the complete eprint dataset will be used.
+
+=back
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--all>
+
+Does not only process the next batch of eprints, but all eprints.
+
+=item B<--report>
+
+Output a results report.
+
+=item B<--crawl-retry NUM>
+
+Re-try failed requests up to NUM times (default: 3 tries).
+
+=item B<--crawl-delay INT>
+
+Delay time in seconds between two requests (default: 10 seconds)
+
+=item B<--timeout INT>
+
+Timeout in seconds a request is waiting for a response (default: 60 seconds)
+
+=item B<--dumpresponse>
+
+Print a dump of the server response.
+
+=item B<--test>
+
+Do not check URL, but test that the algorithm selects each eprint
+exactly once per month.
+
+=item B<--help>
+
+Print a brief help message and exit.
+
+=item B<--man>
+
+Print the full manual page and then exit.
+
+=item B<--quiet>
+
+Be vewwy vewwy quiet. This option will supress all output unless an error occurs.
+
+=item B<--verbose>
+
+Explain in detail what is going on. May be repeated for greater effect.
+
+=back
+
+=cut
+
+use strict;
+use warnings;
+
+use Date::Calc;
+use Getopt::Long;
+use Pod::Usage;
+
+use EPrints;
+
+#
+# Parameters for command line options
+#
+my $fetch_all = 0;
+my $crawl_retry = 3;
+my $crawl_delay = 10;
+my $timeout = 60;
+my $dump_response = 0;
+my $output_report = 0;
+my $unit_test = 0;
+my $help = 0;
+my $man = 0;
+my $verbose = 0;
+my $quiet = 0;
+
+#
+# Global variables
+#
+my $period = "day";
+my $eplist;
+my $report = {};
+
+#
+# Parse the command line options
+#
+Getopt::Long::Configure("permute");
+GetOptions(
+	'all' => \$fetch_all,
+	'crawl-retry=i' => \$crawl_retry,
+	'crawl-delay=i' => \$crawl_delay,
+	'timeout=i' => \$timeout,
+	'dumpresponse' => \$dump_response,
+	"report" => \$output_report,
+	"test" => \$unit_test,
+	'help|?' => \$help,
+	'man' => \$man,
+	'verbose+' => \$verbose,
+	'quiet' => \$quiet,
+	
+) || pod2usage( 2 );
+
+
+#
+# Print out help screens, if desired
+#
+pod2usage( 1 ) if $help;
+pod2usage( -exitstatus => 0, -verbose => 2 ) if $man;
+pod2usage( 2 ) if( scalar @ARGV < 1 );
+
+#
+# Configure verbosity
+#
+my $noise = 1;
+$noise = 0 if( $quiet );
+$noise = 1 + $verbose if( $verbose );
+
+my $repoid = $ARGV[0];
+
+my $session = EPrints::Session->new( 1 , $repoid , $noise );
+if( !defined $session )
+{
+	print STDERR "Failed to load repository: $repoid\n";
+	exit 1;
+}
+
+my $dataset = $session->get_repository->get_dataset( "archive" );
+
+#
+# Work out the date for which we are doing the update
+#
+my ( $update_year, $update_month, $update_day, $update_hour, $update_minute, $update_second ) = Date::Calc::Today_and_Now();
+
+#
+# Convert the update date to GMT since EPrints functions return GMT
+#
+my ( $delta_year, $delta_month, $delta_day, $delta_hour, $delta_minute, $delta_second, $dst ) = Date::Calc::Timezone();
+( $update_year, $update_month, $update_day, $update_hour, $update_minute, $update_second ) = Date::Calc::Add_Delta_YMDHMS(
+	$update_year, $update_month, $update_day, $update_hour, $update_minute, $update_second,
+	-$delta_year, -$delta_month, -$delta_day, -$delta_hour, -$delta_minute, -$delta_second,
+);
+
+
+#
+# Create a plugin  
+#
+my $plugin;
+$plugin = $session->plugin( 'LinkCheck::LinkCheck' );
+
+if ( !defined($plugin) )
+{
+	# the plug-in itself should print an error message
+	$session->terminate();
+	exit 1;
+}
+
+#
+# Prepare the plugin parameters
+#
+$plugin->{param}->{report} = $report;
+$plugin->{param}->{verbose} = $verbose;
+$plugin->{param}->{crawl_retry} = $crawl_retry;
+$plugin->{param}->{crawl_delay} = $crawl_delay;
+$plugin->{param}->{timeout} = $timeout;
+$plugin->{param}->{dump_response} = $dump_response;
+$plugin->{param}->{base_url} = $session->get_repository->config( "base_url" );
+
+
+if ( $unit_test )
+{
+	# perform testing then exit
+	if ( $fetch_all )
+	{
+		print STDERR "--all option invalidated by --test\n";
+	}
+        
+	my $rc = test_eprint_selection_algorithm( $session, $dataset, $update_year, $update_month, $period );
+	$session->terminate();
+	exit $rc;
+}
+
+if ( scalar(@ARGV) == 1 )
+{
+	if ( $fetch_all )
+	{
+		$eplist = get_all_eprints( $session, $dataset );
+	}
+	else
+	{
+		# get the IDs of all of the eprints due for updating today
+        my @ids = get_eprintids_for_day( $session, $dataset, $update_year, $update_month, $update_day );
+
+        # save the last index of the array for later
+        my $cutoff = ( scalar @ids ) - 1;
+
+        # add the IDs of all the eprints deposited yesterday
+        my @ids_extra = get_eprintids_for_yesterday( $session, $dataset, $update_year, $update_month, $update_day );
+        if ( scalar @ids_extra > 0 )
+        {
+                push @ids, @ids_extra;
+        }
+		
+		# output eprint IDs 
+		if ( $noise > 0 )
+		{
+			print "Running update for " . Date::Calc::Date_to_Text( $update_year, $update_month, $update_day ) . " UTC.\n";
+			if ( scalar @ids > 0 )
+			{
+				print "Scheduled EPrints: " . $ids[0] . " to " . $ids[$cutoff] . "\n";
+				if ( scalar @ids > $cutoff + 1 )
+				{
+					print "New EPrints:";
+					for ( my $i = $cutoff + 1; $i < scalar @ids; $i++ )
+					{
+						print " ". $ids[$i];
+					}
+					print "\n";
+				}
+			}
+			else
+			{
+				print "No EPrints scheduled.\n";
+			}
+		}
+		
+		# create a list from the IDs
+		
+		$eplist = EPrints::List->new( 
+			repository => $session->get_repository, 
+			dataset => $dataset,
+			ids => \@ids
+		);
+	}
+}
+else 
+{
+#
+#  Get data for specific EPrint IDs listed as commandline parameters
+#
+	if ( $fetch_all )
+	{
+		print STDERR "--all option invalidated by specific eprint ids\n";
+	}
+
+	my $plist = "";
+	
+	for (my $i = 0; $i < scalar(@ARGV); $i++)
+	{
+		$plist = $plist . $ARGV[$i] . " ";
+	}
+	
+	$plist = substr($plist,0,-1) if (length($plist) > 0);
+   	
+   	my $epexp1 = EPrints::Search->new(
+   		session => $session,
+   		dataset => $dataset,
+   		order => "eprintid",
+   	);
+   	
+   	$epexp1->add_field(
+   		$dataset->get_field("eprintid"),
+   		$plist,
+   		"EQ",
+   		"ANY",
+   	);
+   	
+   	$eplist = $epexp1->perform_search;
+}
+
+my $result_count = $eplist->count();
+print STDERR "$result_count record(s) found.\n" if ($noise >= 2);
+
+$eplist->map( \&process_record, $plugin);
+
+$plugin->print_report() if $output_report;
+
+#
+# Clean up
+#
+$eplist->dispose();
+$session->terminate();
+
+exit;
+
+sub process_record
+{
+	my ($session, $dataset, $eprint, $plugin) = @_;
+	
+	$plugin->{session} = $session;
+	$plugin->{dataset} = $dataset;
+	$plugin->{eprint} = $eprint;
+	
+	$plugin->check_urls();
+	
+	return;
+}
+
+
+#
+# Get all eprints, used with option --all
+# 
+sub get_all_eprints
+{
+	my ( $session, $dataset ) = @_;
+   
+	return $dataset->search;
+}
+
+#
+# Get an array of eprint IDs that are due for updates today
+#
+sub get_eprintids_for_day
+{
+	my ( $session, $dataset, $year, $month, $day ) = @_;
+
+	# get all of the eprints to the end of the previous month
+	my $list = get_eprints_before_month( $session, $dataset, $year, $month);
+
+	# work which eprints are due for update today
+	my $n = $list->count;
+	my $d = Date::Calc::Days_in_Month( $year, $month );
+	my $index_start = ( ( $day - 1 ) * $n ) / $d;
+	my $index_end = ( $day * $n ) / $d - 1;
+	my $index_count = ( $index_end >= $index_start )? $index_end - $index_start + 1 : 1;
+	my @ids = @{$list->ids( $index_start, $index_count )};
+
+	# clean up
+	$list->dispose;
+
+	return @ids;
+}
+
+#
+# Get an array of eprint IDs that were deposited yesterday
+#
+sub get_eprintids_for_yesterday
+{
+	my ( $session, $dataset, $year, $month, $day ) = @_;
+
+	# get yesterday's date
+	my ( $yesterday_year, $yesterday_month, $yesterday_day ) = Date::Calc::Add_Delta_Days( $year, $month, $day, -1 );
+
+	# find all of the eprints added yesterday
+	my $searchexp = get_basic_searchexp( $session, $dataset );
+	
+	$searchexp->add_field( 
+		$dataset->get_field( "datestamp" ), 
+		sprintf( "%04d-%02d-%02d", $yesterday_year, $yesterday_month, $yesterday_day )
+	);
+	
+	my $list = $searchexp->perform_search;
+	my @ids = @{$list->ids};
+
+	# clean up
+	$list->dispose;
+
+	return @ids;
+}
+
+#
+# Get a list of all eprints that existed at the beginning of the month.
+#
+sub get_eprints_before_month
+{
+	my ( $session, $dataset, $year, $month ) = @_;
+
+	# work out the last day of the previous month
+	my $last_month = $month - 1;
+	my $last_year = $year;
+	if ( $last_month == 0)
+	{
+		$last_year--;
+		$last_month = 12;
+	}
+	my $last_day = Date::Calc::Days_in_Month( $last_year, $last_month );
+
+	# get the eprints
+	my $searchexp = get_basic_searchexp( $session, $dataset );
+
+	$searchexp->add_field( 
+		$dataset->get_field( "datestamp" ), 
+		sprintf( "-%04d-%02d-%02d", $last_year, $last_month, $last_day )
+	);
+	
+	return $searchexp->perform_search;
+}
+
+#
+# Perform unit testing on the eprint selection algorithms. This function
+# checks that every eprint is selected for an update exactly once per month.
+#
+# Returns 0 if the test was successful, or 1 if it was not.
+#
+sub test_eprint_selection_algorithm
+{
+	my ( $session, $dataset, $test_year, $test_month, $period ) = @_;
+
+	# get a list of all eprint IDs in the dataset per selected type
+	my $list = get_all_eprints( $session, $dataset);
+	
+	my @ids_all = @{$list->ids( 0, $list->count )};
+	$list->dispose;
+
+	# build a list of the eprints to be updated, and sort into ascending order	
+	my @ids_update = ();
+	my $d = Date::Calc::Days_in_Month( $test_year, $test_month );
+
+	# get the eprint IDs for every day
+	for ( my $test_day = 1; $test_day <= $d; $test_day++ )
+	{
+		push @ids_update, get_eprintids_for_day( $session, $dataset, $test_year, $test_month, $test_day );
+		if ( $test_day > 1 )
+		{
+			push @ids_update, get_eprintids_for_yesterday( $session, $dataset, $test_year, $test_month, $test_day );
+		}
+	}
+
+	# add the eprints that were added on the last day of the month
+	if ( $test_month == 12)
+	{
+		push @ids_update, get_eprintids_for_yesterday( $session, $dataset,$test_year + 1, 1, 1 );
+	}
+	else
+	{
+		push @ids_update, get_eprintids_for_yesterday( $session, $dataset, $test_year, $test_month + 1, 1 );
+	}
+
+	my @ids_sorted = sort { $a <=> $b } @ids_update;
+
+	# compare the two lists
+	my $n_all = scalar @ids_all;
+	my $n_update = scalar @ids_sorted;
+	my $i = 0;
+	print "Update\tAll\n" if $session->{noise} > 1;
+	while ( $i < $n_all && $i < $n_update && $ids_sorted[$i] == $ids_all[$i] )
+	{
+		print $ids_sorted[$i] . "\t" . $ids_all[$i] ."\n" if $session->{noise} > 1;
+		$i++;
+	}
+	if ( $i == $n_all && $n_all == $n_update )
+	{
+		print "Test successful.\n" if $session->{noise} > 0;
+		return 0;
+	}
+	elsif ( $i == $n_all && $n_all != $n_update )
+	{
+		print "The update list ($n_update elements) continues beyond the end of the live IDs ($n_all elements)." if $session->{noise} > 0;
+		return 1;
+	}
+	elsif ( $i == $n_update && $n_all != $n_update )
+	{
+		print "The update list ($n_update elements) does not contain all of the live IDs ($n_all elements)." if $session->{noise} > 0;
+		return 1;
+	}
+	else
+	{
+		print $ids_sorted[$i] . "\t" . $ids_all[$i] . "\n" if $session->{noise} > 1;
+		print "Test failed at position $i.\n" if $session->{noise} > 0;
+		return 1;
+	}
+}
+
+#
+# Creates the standard search expression. If required, slices for specific datestamps
+# are added later in get_eprintids_for_yesterday, get_eprints_before_month,
+# test_eprint_selection_algorithm
+#
+sub get_basic_searchexp
+{
+	my ( $session, $dataset ) = @_;
+
+	my $searchexp = EPrints::Search->new(
+		session => $session,
+		dataset => $dataset,
+		custom_order => "eprintid",
+	);
+	
+	return $searchexp;
+}

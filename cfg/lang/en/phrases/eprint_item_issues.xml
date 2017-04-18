@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!DOCTYPE phrases SYSTEM "entities.dtd">
+
+<epp:phrases xmlns="http://www.w3.org/1999/xhtml" xmlns:epp="http://eprints.org/ep3/phrase"
+  xmlns:epc="http://eprints.org/ep3/control">
+
+  <!-- item_issues fields -->
+  <epp:phrase id="eprint_fieldname_item_issues">Issues</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_id">Issue ID</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_id">The unique identification number of this issue.</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_type">Issue type</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_type">The type of the issue</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_type">
+    The type of the issue. Use one of the following types:<br/>
+    <span class="ep_form_example">check_url_status</span> : for issues with malfunctioning URLs reported by the link check<br/>
+    <span class="ep_form_example">duplicate_title</span> : for finding eprints with duplicate titles<br/>
+    <span class="ep_form_example">invalid_url</span> : eprints that have malformed URLs reported by the link check<br/>
+    <span class="ep_form_example">journal_article_but_no_issn</span> : for finding eprints with missing ISSNs<br/>
+    <span class="ep_form_example">similar_title</span> : for finding eprints with similar titles
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_description">Description</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_description">A full description of the discovered or reported issue</epp:phrase> 
+  <epp:phrase id="eprint_fieldname_item_issues_timestamp">Timestamp</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_timestamp">The timestamp when the issue was discovered or reported</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_timestamp">
+    The timestamp when the issue was discovered or reported.<br/>
+    Enter a date or date range.<br/>
+    Examples: "<span class="ep_form_example">1985-</span>", 
+    "<span class="ep_form_example">2001-05-17-2002-05-16</span>",
+    "<span class="ep_form_example">-11-1980</span>"
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_status">Status</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_status">Issue Status</epp:phrase>
+  <epp:phrase id="searchfield_help_item_issues_status">
+    The status of the issue updated by various processes.<br/>
+    The values <span class="ep_form_example">Auto Discovered</span> and <span class="ep_form_example">Auto Resolved</span> are updated nightly by the issues audit process.<br/>
+   The values <span class="ep_form_example">Reported</span> and <span class="ep_form_example">Resolved</span> are updated by the link checker.
+  </epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_reported_by">Reported by</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_reported_by">User who reported the issue</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_resolved_by">Resolved by</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_resorted_by">User who resolved the issue</epp:phrase>
+  <epp:phrase id="eprint_fieldname_item_issues_comment">Comments</epp:phrase>
+  <epp:phrase id="eprint_fieldhelp_item_issues_comment">Comments</epp:phrase>
+
+</epp:phrases>
